@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% set active_page = "logs" %}
+
+{% block title %}Recognition Logs{% endblock %}
+{% block page_title %}Recognition Logs{% endblock %}
+
+{% block content %}
+<div class="table-container glass-card">
+    <div class="table-toolbar">
+        <div class="table-info" id="tableInfo">Loading logs...</div>
+        <div class="table-actions">
+            <select id="logLimit" class="select-field" onchange="loadLogs()">
+                <option value="10">Last 10</option>
+                <option value="25">Last 25</option>
+                <option value="50" selected>Last 50</option>
+                <option value="100">Last 100</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadLogs()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                Refresh
+            </button>
+        </div>
+    </div>
+    <table class="data-table" id="logsTable">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Person</th>
+                <th>Confidence</th>
+                <th>Source</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="logsBody">
+            <tr class="empty-row">
+                <td colspan="5">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading...</p>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        loadLogs();
+    });
+
+    async function loadLogs() {
+        const limit = document.getElementById('logLimit').value;
+        try {
+            const logs = await apiGet(`/api/logs?limit=${limit}`);
+            renderLogs(logs);
+        } catch (e) {
+            document.getElementById('logsBody').innerHTML =
+                '<tr class="empty-row"><td colspan="5"><div class="empty-state-inline">Failed to load logs</div></td></tr>';
+        }
+    }
+
+    function renderLogs(logs) {
+        const tbody = document.getElementById('logsBody');
+        const info = document.getElementById('tableInfo');
+
+        if (!logs.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="5"><div class="empty-state-inline">No recognition events recorded yet</div></td></tr>';
+            info.textContent = '0 events';
+            return;
+        }
+
+        info.textContent = `${logs.length} event${logs.length !== 1 ? 's' : ''}`;
+
+        tbody.innerHTML = logs.map((log, i) => `
+            <tr style="animation-delay: ${i * 0.02}s" class="fade-in-row">
+                <td class="row-number">${i + 1}</td>
+                <td><span class="person-name-badge">${escapeHtml(log.name)}</span></td>
+                <td>${getConfidenceBadge(log.confidence)}</td>
+                <td><span class="source-badge source-${log.source}">${log.source}</span></td>
+                <td class="timestamp-cell">${formatTimestamp(log.timestamp)}</td>
+            </tr>
+        `).join('');
+    }
+</script>
+{% endblock %}
